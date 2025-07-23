@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <!-- Meta tag esencial para el diseño responsivo -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema VMT: Programa e Informes</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* --- ESTILOS GENERALES Y NAVEGACIÓN PRINCIPAL--- */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background-color: #f0f0f0; }
+        .container, .managers-container, .filters-container { max-width: 1200px; margin: auto; border: 1px solid #ccc; padding: 25px; border-radius: 8px; background-color: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .nav-menu { text-align: center; margin-bottom: 20px; background-color: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,.1); display: flex; justify-content: center; flex-wrap: wrap; }
+        .nav-button { font-size: 1em; padding: 10px 20px; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; background-color: #f0f0f0; margin: 5px; font-weight: 700; transition: background-color 0.3s, color 0.3s; }
+        .nav-button.active { background-color: #007bff; color: #fff; border-color: #007bff; }
+        
+        /* --- ESTILOS PARA LA PESTAÑA 'PROGRAMA' --- */
+        .week-selector-container { text-align: center; margin: 0 0 20px 0; padding: 15px; border-radius: 8px; background-color: #f9f9f9; border: 1px solid #eee; }
+        select.history-select { padding: 10px; font-size: 1em; border-radius: 5px; border: 1px solid #ccc; min-width: 300px; margin: 5px 0; max-width: 100%; }
+        h1.program-title { text-align: left; border-bottom: none; padding-bottom: 0; margin-bottom: 15px; font-size: 1.2em; font-weight: 700; }
+        .header-info, .intro-list { list-style: none; padding: 0; margin-bottom: 20px; }
+        .header-info li, .intro-list li { padding: 2px 0; }
+        .header-info strong { display: inline-block; width: 150px; }
+        .header-info select { border: none; background-color: transparent; font-family: inherit; font-size: inherit; padding: 2px; min-width: 200px; appearance: none; }
+        .header-info select:focus { outline: 1px solid #ccc; background-color: #f0f8ff; }
+        table.main-program-table { width: 100%; border-collapse: collapse; margin-top: 20px; border: none; table-layout: fixed; }
+        .main-program-table th, .main-program-table td { border: 1px solid #e0e0e0; padding: 10px; text-align: left; vertical-align: top; word-wrap: break-word; }
+        .main-program-table th:nth-child(1) { width: 50%; }
+        .main-program-table th:nth-child(2), .main-program-table th:nth-child(3), .main-program-table th:nth-child(4) { width: 16.66%; }
+        .main-program-table th { background-color: #f7f7f7; font-weight: 700; text-align: center; }
+        .main-program-table thead th:first-child { background-color: #fff; border: none; }
+        .header-time { font-size: .8em; font-weight: 400; }
+        .section-header { font-weight: 700; color: #fff; padding-left: 10px !important; font-size: 1.1em; }
+        .tesoros-header { background-color: #5a6369; }
+        .maestros-header { background-color: #c19a26; }
+        .vida-cristiana-header { background-color: #8b2c39; }
+        .participante { font-size: .9em; text-align: center; vertical-align: middle; }
+        .participante select, .participante input { width: 100%; border: none; background-color: transparent; padding: 2px; font-family: inherit; font-size: inherit; color: inherit; box-sizing: border-box; text-align: center; appearance: none; }
+        .participante select:focus, .participante input:focus { outline: 1px solid #ccc; background-color: #f0f8ff; border-radius: 2px; }
+        .participant-pair { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
+        .participant-pair > div { display: flex; justify-content: center; align-items: center; }
+        .participant-pair select { width: auto; text-align: center; padding: 0 2px; margin: 0; }
+        .button-container { text-align: center; margin: 30px 0; }
+        .sub-nav-menu { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0; }
+        .sub-nav-button { padding: 8px 12px; border: 1px solid #ddd; background-color: #f9f9f9; cursor: pointer; border-radius: 5px; font-size: .9em; }
+        .sub-nav-button.active { background-color: #333; color: #fff; border-color: #333; }
+        .list { list-style: none; padding: 0; }
+        .list li { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #eee; }
+        .list .actions button { margin-left: 10px; padding: 5px 10px; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; }
+        .add-form { display: flex; gap: 10px; margin-bottom: 20px; }
+        .filters-container h2 { margin-top: 0; }
+        .filter-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .filter-btn { padding: 8px 15px; border: 1px solid #ccc; background-color: #e9e9e9; cursor: pointer; border-radius: 20px; font-size: .9em; }
+        .filter-btn.active { background-color: #007bff; color: #fff; border-color: #007bff; font-weight: 700; }
+        .table-wrapper { max-height: 60vh; overflow: auto; }
+        .filters-table { width: 100%; border-collapse: collapse; font-size: .9em; }
+        .filters-table th, .filters-table td { border: 1px solid #ddd; padding: 8px; text-align: center; min-width: 60px; }
+        .filters-table th { background-color: #f2f2f2; position: sticky; top: 0; z-index: 2; }
+        .filters-table td:first-child, .filters-table th:first-child { text-align: left; font-weight: 700; position: sticky; left: 0; background-color: #f9f9f9; z-index: 1; min-width: 150px; }
+        .filters-table th:first-child { z-index: 3; }
+        .filters-legend { padding: 10px 15px; border: 1px solid #e0e0e0; background-color: #f9f9f9; border-radius: 5px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+        .assignment-marker { display: inline-block; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: .9em; line-height: 1.2; border: 1px solid rgba(0,0,0,.1); }
+        .sala-main { background-color: #cfe2ff; color: #052c65; }
+        .sala-aux2 { background-color: #d1e7dd; color: #0a3622; }
+        .sala-aux3 { background-color: #fff3cd; color: #664d03; }
+
+        /* --- ESTILOS PARA LA PESTAÑA 'INFORMES' (S-89) --- */
+        .reports-filters { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; padding: 15px; background-color: #f9f9f9; border-radius: 8px; margin-bottom: 25px; }
+        .reports-filters select { padding: 8px; border-radius: 5px; border: 1px solid #ccc; min-width: 200px; }
+        #reports-container button { font-size: 1.1em; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; transition: background-color .3s; }
+        #download-reports-btn { background-color: #198754; color: #fff; margin-left: auto; }
+        #reports-output { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .report-slip { position: relative; background-color: #f0f5fc; border: 1px solid #cddaf0; border-radius: 8px; padding: 15px; box-sizing: border-box; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; page-break-inside: avoid; }
+        .report-field { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: .9em; }
+        .report-field strong { position: relative; width: 90px; flex-shrink: 0; }
+        .report-field span { flex-grow: 1; border-bottom: 1px dotted #333; padding: 0 3px; }
+        .delivery-check { flex-shrink: 0; margin-left: 10px; width: 22px; height: 22px; border: 2px solid #a0b0c8; border-radius: 50%; cursor: pointer; transition: all .3s; display: flex; align-items: center; justify-content: center; font-weight: 700; color: transparent; }
+        .delivery-check.checked { background-color: #28a745; border-color: #28a745; color: #fff; }
+        .report-slip h3 { text-align: center; margin-top: 0; margin-bottom: 20px; font-size: 1em; line-height: 1.2; }
+        .report-slip .rooms { margin-top: 15px; font-size: .9em; }
+        .report-slip .rooms div { margin-bottom: 5px; }
+        .report-slip .footer-note { margin-top: 15px; font-size: .7em; color: #555; border-top: 1px solid #ddd; padding-top: 8px; }
+        .room-label::before { content: '☐'; font-family: "DejaVu Sans", sans-serif; margin-right: 8px; font-size: 1.2em; vertical-align: middle; color: #555; }
+        .room-label[data-checked="true"]::before { content: '☑'; }
+
+        /* --- ESTILOS RESPONSIVOS PARA MÓVILES (max-width: 768px) --- */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .container, .managers-container, .filters-container { padding: 15px; }
+            .nav-button { padding: 8px 12px; font-size: 0.9em; }
+
+            /* Ajustes para la tabla de Programa */
+            .main-program-table thead { display: none; }
+            .main-program-table, .main-program-table tbody, .main-program-table tr, .main-program-table td { display: block; width: 100%; box-sizing: border-box; }
+            .main-program-table tr { border: 1px solid #ddd; margin-bottom: 15px; border-radius: 5px; padding: 10px; }
+            .main-program-table td { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border: none; border-bottom: 1px dotted #eee; text-align: right; }
+            .main-program-table td:before { content: attr(data-label); font-weight: bold; text-align: left; padding-right: 10px; }
+            .main-program-table td:first-child { display: block; background-color: #f9f9f9; font-weight: bold; text-align: center; padding: 10px; margin: -10px -10px 10px -10px; border-bottom: 1px solid #ddd; border-radius: 5px 5px 0 0; }
+            .main-program-table td:first-child:before { display: none; }
+            .main-program-table td.section-header { margin: 15px -10px 10px -10px; }
+            .participante { width: 60%; }
+
+            /* Ajustes para la tabla de Filtros Avanzados */
+            .filters-table thead { display: none; }
+            .filters-table, .filters-table tbody, .filters-table tr, .filters-table td { display: block; width: auto; }
+            .filters-table tr { border: 1px solid #ddd; margin-bottom: 10px; }
+            .filters-table td { border: none; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; padding: 10px 5px; text-align: right; }
+            .filters-table td:before { content: attr(data-label); font-weight: bold; padding-right: 10px; text-align: left; }
+            .filters-table td:first-child { background-color: #f0f0f0; display: block; text-align: center; font-size: 1.1em; padding: 10px; }
+            .filters-table td:first-child:before { display: none; }
+            .table-wrapper { max-height: none; overflow: visible; }
+
+            /* Ajustes para Formularios de Gestión */
+            .add-form { flex-direction: column; }
+            .add-form input, .add-form button { width: 100%; box-sizing: border-box; }
+            .list li { flex-direction: column; align-items: flex-start; gap: 10px; }
+
+            /* Ajustes para la pestaña Informes */
+            #reports-output { grid-template-columns: 1fr; }
+            .reports-filters { flex-direction: column; align-items: stretch; }
+            #download-reports-btn { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-menu">
+        <button id="nav-program" class="nav-button active">Programa</button>
+        <button id="nav-managers" class="nav-button">Gestionar Participantes</button>
+        <button id="nav-filters" class="nav-button">Filtros Avanzados</button>
+        <button id="nav-reports" class="nav-button">Informes</button>
+    </div>
+
+    <div id="program-container" class="container"></div>
+    <div id="managers-container" class="managers-container" style="display: none;"></div>
+    <div id="filters-container" class="filters-container" style="display: none;"></div>
+    <div id="reports-container" class="container" style="display: none;"></div>
+
+    <script>
+    // --- CONFIGURACIÓN GENERAL ---
+    const SUPABASE_URL = 'https://iosdslhikguqyhspbpbn.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlvc2RzbGhpa2d1cXloc3BicGJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwOTMzNjMsImV4cCI6MjA2ODY2OTM2M30.HbgX9g1e4kYZf1jn0-8RR8BctYZctVopigZgZVXBaJY';
+    const { createClient } = supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- VARIABLES GLOBALES COMPARTIDAS ---
+        let fullDataCache = {}; 
+        let selectDataCache = {}; 
+        let assignmentsByRole = {};
+        let deliveryStatus = {}; // Específico para Informes
+        let reportsInitialized = false; // Flag para inicializar la pestaña de informes solo una vez
+
+        const managerConfig = [
+            { type: 'presidentes', title: 'Presidentes', tableName: 'lista_encargados', singular: 'Presidente', placeholder: 'presidente' },
+            { type: 'consejeros', title: 'Consejeros', tableName: 'consejeros', singular: 'Consejero', placeholder: 'consejero' },
+            { type: 'oradores', title: 'Oración', tableName: 'oradores', singular: 'Orador', placeholder: 'orador' },
+            { type: 'discursantes', title: 'Discursantes (Tesoros/VMT)', tableName: 'discursantes', singular: 'Discursante', placeholder: 'discursante' },
+            { type: 'lectores', title: 'Lectores de Biblia', tableName: 'lectores', singular: 'Lector', placeholder: 'lector' },
+            { type: 'lectores_libro', title: 'Lectores de Libro', tableName: 'lectores_libro', singular: 'Lector', placeholder: 'lector de libro' },
+            { type: 'publicadores', title: 'Publicadores', tableName: 'publicadores', singular: 'Publicador', placeholder: 'publicador' },
+            { type: 'maestros_discurso', title: 'Discurso (Maestros)', tableName: 'maestros_discurso', singular: 'Discursante', placeholder: 'discursante' }
+        ];
+        
+        // --- FUNCIÓN DE INICIO PRINCIPAL ---
+        async function initializeApp() {
+            buildInitialHTML();
+            setupNavigation();
+            
+            // Lógica del módulo 'Programa'
+            setupSubNavigation();
+            setupProgramListeners();
+            managerConfig.forEach(m => setupManager(m.type, m.tableName, m.singular));
+            
+            // Carga de datos y visualización inicial
+            await loadAllSelects();
+            await fetchAndDisplayHistory();
+        }
+
+        function buildInitialHTML() {
+            document.getElementById('program-container').innerHTML = `<div class="week-selector-container"><label for="history-selector"><b>Seleccione la semana guardada en la nube</b></label><br><select id="history-selector" class="history-select"><option value="">-- Cargando... --</option></select></div><h1 id="week-title" class="program-title"></h1><ul id="header-info-list" class="header-info"></ul><ul id="intro-list-container" class="intro-list"></ul><table class="main-program-table"><thead><tr><th></th><th>Sala Auxiliar N°3 <br><span class="header-time">(7:00 p. m.)</span></th><th>Sala Auxiliar N°2</th><th>Auditorio principal</th></tr></thead><tbody id="main-program-body"></tbody></table><div class="button-container"><button id="save-button" class="button" style="background-color:#007bff;color:#fff;">Guardar Cambios</button></div><div id="status-message"></div>`;
+            
+            let managerHTML = '<div class="sub-nav-menu">';
+            let panelHTML = '';
+            managerConfig.forEach((m, index) => {
+                managerHTML += `<button class="sub-nav-button ${index === 0 ? 'active' : ''}" data-manager="${m.type}">${m.title}</button>`;
+                panelHTML += `<div id="${m.type}-manager-panel" class="manager-panel" style="display: ${index === 0 ? 'block' : 'none'};"><h2>Gestionar ${m.title}</h2><div class="add-form"><input type="text" id="new-${m.type}-name" placeholder="Nombre del nuevo ${m.placeholder}"><button id="add-${m.type}-button" class="button" style="background-color: #28a745; color: white;">Agregar</button></div><ul id="${m.type}-list" class="list"></ul><div id="status-message-${m.type}" style="text-align:center;margin-top:15px;font-weight:700;height:20px"></div></div>`;
+            });
+            document.getElementById('managers-container').innerHTML = managerHTML + '</div>' + panelHTML;
+
+            document.getElementById('filters-container').innerHTML = `<h2>Filtros Avanzados</h2><p>Seleccione un tipo de asignación para ver un resumen.</p><div id="filter-buttons-container" class="filter-buttons"><p>Cargando filtros...</p></div><div id="filters-legend" class="filters-legend" style="display: none;"><h4>Leyenda:</h4><div class="legend-item"><span class="assignment-marker sala-main">Aud</span><span>Auditorio</span></div><div class="legend-item"><span class="assignment-marker sala-aux2">S2</span><span>Sala 2</span></div><div class="legend-item"><span class="assignment-marker sala-aux3">S3</span><span>Sala 3</span></div><div class="legend-item"><strong>E</strong><span>Encargado</span></div><div class="legend-item"><strong>A</strong><span>Ayudante</span></div></div><div id="filters-results" class="table-wrapper"><p>Seleccione un filtro.</p></div>`;
+            document.getElementById('reports-container').innerHTML = `<h2>Generador de Hojas de Asignación (S-89)</h2><div class="reports-filters"><label for="report-week-filter"><strong>Filtrar por semana:</strong></label><select id="report-week-filter"><option value="">-- Todas --</option></select><label for="report-person-filter"><strong>Filtrar por persona:</strong></label><select id="report-person-filter"><option value="">-- Todas --</option></select><button id="clear-reports-filter-btn" style="background-color: #6c757d; color: white;">Limpiar</button><button id="download-reports-btn">Imprimir / Guardar PDF</button></div><div id="reports-output"><p>Cargando informes...</p></div>`;
+        }
+        
+        function setupNavigation() {
+            const navButtons = document.querySelectorAll('.nav-button');
+            const containers = {
+                'nav-program': document.getElementById('program-container'),
+                'nav-managers': document.getElementById('managers-container'),
+                'nav-filters': document.getElementById('filters-container'),
+                'nav-reports': document.getElementById('reports-container')
+            };
+            navButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    navButtons.forEach(btn => btn.classList.remove('active'));
+                    Object.values(containers).forEach(cont => cont.style.display = 'none');
+                    button.classList.add('active');
+                    containers[button.id].style.display = 'block';
+
+                    if (button.id === 'nav-managers' && document.getElementById(`${managerConfig[0].type}-list`).innerHTML === '') {
+                        loadManagerData(managerConfig[0].type, managerConfig[0].tableName, managerConfig[0].singular);
+                    } else if (button.id === 'nav-filters') {
+                        setupAdvancedFilters();
+                    } else if (button.id === 'nav-reports' && !reportsInitialized) {
+                        setupReportsTab();
+                        reportsInitialized = true;
+                    }
+                });
+            });
+            document.getElementById('program-container').style.display = 'block';
+        }
+
+        // --- FUNCIONES DEL MÓDULO PROGRAMA, GESTIÓN Y FILTROS (Minificadas para brevedad) ---
+        function setupSubNavigation(){document.querySelector(".sub-nav-menu").addEventListener("click",e=>{if(e.target.matches(".sub-nav-button")){const t=e.target.dataset.manager;document.querySelectorAll(".sub-nav-button").forEach(e=>e.classList.remove("active")),e.target.classList.add("active"),document.querySelectorAll(".manager-panel").forEach(e=>e.style.display="none"),document.getElementById(`${t}-manager-panel`).style.display="block";const a=managerConfig.find(e=>e.type===t);a&&loadManagerData(a.type,a.tableName,a.singular)}})}
+        function setupProgramListeners(){document.getElementById("history-selector").addEventListener("change",e=>loadWeekData(e.target.value)),document.getElementById("save-button").addEventListener("click",saveCurrentDataToCloud)}
+        function setupManager(e,t,a){const n=document.getElementById(`add-${e}-button`),o=document.getElementById(`new-${e}-name`),s=document.getElementById(`status-message-${e}`);n.addEventListener("click",async()=>{const n=o.value.trim();if(!n)return void alert("Por favor, ingrese un nombre.");s.textContent="Agregando...";(await db.from(t).insert({nombre:n})).error?(s.textContent="Error al agregar."):(o.value="",await loadManagerData(e,t,a),await loadAllSelects())}),document.getElementById(`${e}-list`).addEventListener("click",async n=>{const o=n.target.closest("button");if(o){const n=o.dataset.id,r=o.dataset.name;if(o.classList.contains("edit-btn")){const i=prompt("Editar nombre:",r);i&&i.trim()&&i.trim()!==r&&(s.textContent="Actualizando...",await db.from(t).update({nombre:i.trim()}).eq("id",n),await loadManagerData(e,t,a),await loadAllSelects())}o.classList.contains("delete-btn")&&confirm(`¿Seguro que desea eliminar a "${r}"?`)&&(s.textContent="Eliminando...",await db.from(t).delete().eq("id",n),await loadManagerData(e,t,a),await loadAllSelects())}})}
+        async function loadManagerData(e,t,a){const n=document.getElementById(`status-message-${e}`);n.textContent="Cargando...";const{data:o,error:s}=await db.from(t).select("id, nombre").order("nombre",{ascending:!0});if(s)return void(n.textContent="Error al cargar.");const r=document.getElementById(`${e}-list`);r.innerHTML=0===o.length?`<li>No hay ${a.toLowerCase()}s registrados.</li>`:o.map(e=>`<li><span>${e.nombre}</span><div class="actions"><button class="edit-btn" data-id="${e.id}" data-name="${e.nombre}">Editar</button><button class="delete-btn" data-id="${e.id}" data-name="${e.nombre}">Eliminar</button></div></li>`).join(""),n.textContent=""}
+        async function loadAllSelects(){for(const e of managerConfig){const{data:t}=await db.from(e.tableName).select("nombre").order("nombre");t&&(selectDataCache[e.type]=t)}}
+        function getOptionsHTML(e,t){let a='<option value="">-- No asignado --</option>';return e&&(a+=e.map(e=>`<option value="${e.nombre}"${e.nombre===t?" selected":""}>${e.nombre}</option>`).join("")),a}
+        async function fetchAndDisplayHistory(){const e=document.getElementById("status-message");e.textContent="Cargando historial...";const{data:t,error:a}=await db.from("programas").select("week_id, data").order("week_id",{ascending:!0});if(a||!t)return void(e.textContent="Error al cargar historial.");fullDataCache={};const n=document.getElementById("history-selector");n.innerHTML=t.map(e=>(fullDataCache[e.week_id]=e.data,`<option value="${e.week_id}">${e.data.titulo||e.week_id}</option>`)).join(""),t.length>0?(n.value=n.options[n.options.length-1].value,loadWeekData(n.value)):e.textContent="No hay programas en la nube."}
+        function loadWeekData(e){const t=fullDataCache[e];t&&populateForm(t)}
+        function populateForm(e){const t=["Sala Auxiliar N°3","Sala Auxiliar N°2","Auditorio principal"];document.getElementById("week-title").textContent=e.titulo||"",document.getElementById("header-info-list").innerHTML=`<li><strong>Presidente:</strong> <select id="presidente">${getOptionsHTML(selectDataCache.presidentes,e.presidentes?.principal)}</select></li><li><strong>Sala auxiliar N° 2:</strong> <select id="auxiliar-2">${getOptionsHTML(selectDataCache.consejeros,e.presidentes?.aux2)}</select></li><li><strong>Sala auxiliar N° 3:</strong> <select id="auxiliar-3">${getOptionsHTML(selectDataCache.consejeros,e.presidentes?.aux3)}</select></li><li><strong>Oración de Inicio:</strong> <select id="oracion-inicio">${getOptionsHTML(selectDataCache.oradores,e.oracion?.inicio)}</select></li>`,document.getElementById("intro-list-container").innerHTML=`<li>• ${e.canciones?.inicio||""}</li><li>• Palabras de introducción (1 min.)</li>`;const a=document.getElementById("main-program-body");let s=`<tr><td colspan="4" class="section-header tesoros-header">TESOROS DE LA BIBLIA</td></tr><tr><td>${e.tesoros?.p1?.title||""}</td><td data-label="${t[0]}"></td><td data-label="${t[1]}"></td><td class="participante" data-label="${t[2]}"><select id="tesoros-p1-main">${getOptionsHTML(selectDataCache.discursantes,e.tesoros?.p1?.main)}</select></td></tr><tr><td>${e.tesoros?.p2?.title||""}</td><td data-label="${t[0]}"></td><td data-label="${t[1]}"></td><td class="participante" data-label="${t[2]}"><select id="tesoros-p2-main">${getOptionsHTML(selectDataCache.discursantes,e.tesoros?.p2?.main)}</select></td></tr><tr><td>${e.tesoros?.p3?.title||""}</td><td class="participante" data-label="${t[0]}"><select id="tesoros-p3-aux3">${getOptionsHTML(selectDataCache.lectores,e.tesoros?.p3?.aux3)}</select></td><td class="participante" data-label="${t[1]}"><select id="tesoros-p3-aux2">${getOptionsHTML(selectDataCache.lectores,e.tesoros?.p3?.aux2)}</select></td><td class="participante" data-label="${t[2]}"><select id="tesoros-p3-main">${getOptionsHTML(selectDataCache.lectores,e.tesoros?.p3?.main)}</select></td></tr><tr><td colspan="4" class="section-header maestros-header">SEAMOS MEJORES MAESTROS</td></tr>`;(e.maestros||[]).forEach((e,a)=>{const o=e.title.toLowerCase().includes("discurso");s+=`<tr><td>${e.title||""}</td>`,["aux3","aux2","main"].forEach((l,c)=>{const d=(e[l]||"").split("/").map(e=>e.trim()),n=d[0]||"",r=d[1]||"";s+=`<td class="participante" data-label="${t[c]}">${o?`<select data-part-index="${a}" data-room="${l}">${getOptionsHTML(selectDataCache.maestros_discurso,n)}</select>`:`<div class="participant-pair"><div><select data-part-index="${a}" data-room="${l}" data-person="1">${getOptionsHTML(selectDataCache.publicadores,n)}</select><span class="separator"> /</span></div><select data-part-index="${a}" data-room="${l}" data-person="2">${getOptionsHTML(selectDataCache.publicadores,r)}</select></div>`}</td>`}),s+="</tr>"}),s+='<tr><td colspan="4" class="section-header vida-cristiana-header">NUESTRA VIDA CRISTIANA</td></tr>',e.canciones?.vidaCristiana&&(s+=`<tr><td>• <b>${e.canciones.vidaCristiana}</b></td><td data-label="${t[0]}"></td><td data-label="${t[1]}"></td><td data-label="${t[2]}"></td></tr>`),(e.vidaCristiana||[]).forEach((e,a)=>{let o="";e.hasOwnProperty("conductor")?o=`<strong>Conductor:</strong> <select class="vc-conductor" data-vc-index="${a}">${getOptionsHTML(selectDataCache.discursantes,e.conductor)}</select><br><strong>Lector:</strong> <select class="vc-lector" data-vc-index="${a}">${getOptionsHTML(selectDataCache.lectores_libro,e.lector)}</select>`:e.hasOwnProperty("discursante")&&(o=`<select class="vc-discursante" data-vc-index="${a}">${getOptionsHTML(selectDataCache.discursantes,e.discursante)}</select>`),s+=`<tr><td>• ${e.numero||""}. ${e.titulo||""}</td><td data-label="${t[0]}"></td><td data-label="${t[1]}"></td><td class="participante" data-label="${t[2]}">${o}</td></tr>`}),s+=`<tr><td>• Palabras de conclusión (3 mins.)</td><td data-label="${t[0]}"></td><td data-label="${t[1]}"></td><td data-label="${t[2]}"></td></tr><tr><td>• <b>${e.canciones?.final||""}</b></td><td data-label="${t[0]}"></td><td data-label="${t[1]}"></td><td data-label="${t[2]}"></td></tr><tr><td><strong>Oración Final:</strong></td><td data-label="${t[0]}"></td><td data-label="${t[1]}"></td><td class="participante" data-label="${t[2]}"><select id="oracion-final">${getOptionsHTML(selectDataCache.oradores,e.oracion?.final)}</select></td></tr>`,a.innerHTML=s,document.getElementById("status-message").textContent=""}
+        function getCurrentFormData(){const e=document.getElementById("history-selector").value,t=JSON.parse(JSON.stringify(fullDataCache[e]));return t?(t.presidentes={principal:document.getElementById("presidente").value,aux2:document.getElementById("auxiliar-2").value,aux3:document.getElementById("auxiliar-3").value},t.oracion={inicio:document.getElementById("oracion-inicio").value,final:document.getElementById("oracion-final").value},t.tesoros.p1.main=document.getElementById("tesoros-p1-main").value,t.tesoros.p2.main=document.getElementById("tesoros-p2-main").value,t.tesoros.p3={main:document.getElementById("tesoros-p3-main").value,aux2:document.getElementById("tesoros-p3-aux2").value,aux3:document.getElementById("tesoros-p3-aux3").value},t.maestros.forEach((e,a)=>{["aux2","aux3","main"].forEach(s=>{if(e.title.toLowerCase().includes("discurso"))e[s]=document.querySelector(`select[data-part-index="${a}"][data-room="${s}"]`)?.value||"";else{const o=document.querySelector(`select[data-part-index="${a}"][data-room="${s}"][data-person="1"]`),t=document.querySelector(`select[data-part-index="${a}"][data-room="${s}"][data-person="2"]`);e[s]=[o?.value,t?.value].filter(Boolean).join(" / ")}})}),t.vidaCristiana.forEach((e,a)=>{e.hasOwnProperty("conductor")?(e.conductor=document.querySelector(`.vc-conductor[data-vc-index="${a}"]`)?.value||"",e.lector=document.querySelector(`.vc-lector[data-vc-index="${a}"]`)?.value||""):e.hasOwnProperty("discursante")&&(e.discursante=document.querySelector(`.vc-discursante[data-vc-index="${a}"]`)?.value||"")}),t):null}
+        async function saveCurrentDataToCloud(){const e=document.getElementById("history-selector").value;if(!e)return void alert("Seleccione una semana para guardar.");const t=document.getElementById("status-message");t.textContent="Guardando en la nube...";const a=getCurrentFormData();if(!a)return void(t.textContent="Error al recopilar los datos.");const{error:s}=await db.from("programas").update({data:a}).eq("week_id",e);t.textContent=s?`Error al guardar: ${s.message}`:"¡Guardado en la nube con éxito!",s||(fullDataCache[e]=a)}
+        function addAssignment(assignments, role, nameString, date, room) {if(!nameString||!nameString.trim())return;const names=nameString.split("/").map(e=>e.trim()).filter(Boolean);names.forEach((name,index)=>{let subRole=names.length>1?0===index?"E":"A":null;assignments[role]||(assignments[role]={}),assignments[role][name]||(assignments[role][name]=[]),assignments[role][name].some(e=>e.date===date&&e.room===room)||assignments[role][name].push({date:date,room:room,subRole:subRole})})}
+        function collectAllAssignments(){const assignments={};for(const week_id in fullDataCache){const data=fullDataCache[week_id];data&&(addAssignment(assignments,"Presidente",data.presidentes?.principal,week_id,"main"),addAssignment(assignments,"Consejero",data.presidentes?.aux2,week_id,"aux2"),addAssignment(assignments,"Consejero",data.presidentes?.aux3,week_id,"aux3"),addAssignment(assignments,"Oración Inicio",data.oracion?.inicio,week_id,"main"),addAssignment(assignments,"Oración Final",data.oracion?.final,week_id,"main"),addAssignment(assignments,"Discurso (Tesoros)",data.tesoros?.p1?.main,week_id,"main"),addAssignment(assignments,"Discurso (Tesoros)",data.tesoros?.p2?.main,week_id,"main"),addAssignment(assignments,"Lectura de la Biblia",data.tesoros?.p3?.main,week_id,"main"),addAssignment(assignments,"Lectura de la Biblia",data.tesoros?.p3?.aux2,week_id,"aux2"),addAssignment(assignments,"Lectura de la Biblia",data.tesoros?.p3?.aux3,week_id,"aux3"),(data.maestros||[]).forEach(e=>{const t=e.title.toLowerCase().includes("discurso")?"Discurso (Maestros)":"Demostración (Maestros)";addAssignment(assignments,t,e.main,week_id,"main"),addAssignment(assignments,t,e.aux2,week_id,"aux2"),addAssignment(assignments,t,e.aux3,week_id,"aux3")}),(data.vidaCristiana||[]).forEach(e=>{e.hasOwnProperty("conductor")&&(addAssignment(assignments,"Conducción del Libro",e.conductor,week_id,"main"),addAssignment(assignments,"Lector del Libro",e.lector,week_id,"main")),e.hasOwnProperty("discursante")&&addAssignment(assignments,"Discurso (Vida Cristiana)",e.discursante,week_id,"main")}))}return assignments}
+        function setupAdvancedFilters(){assignmentsByRole=collectAllAssignments();const e=document.getElementById("filter-buttons-container"),t=Object.keys(assignmentsByRole).sort(),a=['<thead><tr><th>Participante</th>'],s=[...new Set(Object.values(assignmentsByRole).flat().map(e=>Object.values(e)).flat().map(e=>e.date))].sort();s.forEach(e=>{a.push(`<th>${e.substring(5).replace("-","/")}</th>`)}),a.push("</tr></thead>"),document.getElementById("filters-legend").style.display="none",document.getElementById("filters-results").innerHTML='<p>Seleccione un filtro para ver los resultados.</p>',0!==t.length?(e.innerHTML=t.map(e=>`<button class="filter-btn" data-role="${e}">${e}</button>`).join(""),e.addEventListener("click",e=>{e.target.matches(".filter-btn")&&(document.querySelectorAll(".filter-btn").forEach(e=>e.classList.remove("active")),e.target.classList.add("active"),displayFilteredTable(e.target.dataset.role,a.join(""),s))})):e.innerHTML="<p>No hay datos de asignaciones para mostrar.</p>"}
+        function displayFilteredTable(e,t,a){const s=document.getElementById("filters-results"),o=document.getElementById("filters-legend"),l=assignmentsByRole[e];if(!l)return s.innerHTML=`<p>No hay asignaciones para el rol "${e}".</p>`,void(o.style.display="none");o.style.display="flex";const c=Object.keys(l).sort();let d=`<table class="filters-table">${t}<tbody>`;const n={main:"Aud",aux2:"S2",aux3:"S3"};c.forEach(e=>{d+=`<tr><td data-label="Participante">${e}</td>`;const t=l[e];a.forEach((a,s)=>{const o=t.find(e=>e.date===a);d+=`<td data-label="${document.querySelector(`.filters-table th:nth-child(${s+2})`).textContent}">${o?`<span class="assignment-marker sala-${o.room}">${o.subRole||n[o.room]||"X"}</span>`:"-"}</td>`}),d+="</tr>"}),d+="</tbody></table>",s.innerHTML=d}
+
+        // --- FUNCIONES DEL MÓDULO DE INFORMES ---
+        function setupReportsTab() {
+            document.getElementById('download-reports-btn').addEventListener('click', prepareAndPrint);
+            document.getElementById('report-week-filter').addEventListener('change', generateReportSlips);
+            document.getElementById('report-person-filter').addEventListener('change', generateReportSlips);
+            document.getElementById('clear-reports-filter-btn').addEventListener('click', () => {
+                document.getElementById('report-week-filter').value = "";
+                document.getElementById('report-person-filter').value = "";
+                generateReportSlips();
+            });
+            document.getElementById('reports-output').addEventListener('click', e => {
+                if (e.target.matches('.delivery-check')) {
+                    const check = e.target;
+                    const slipId = check.closest('.report-slip').dataset.slipId;
+                    const personType = check.dataset.person;
+                    if (deliveryStatus[slipId]) {
+                        deliveryStatus[slipId][personType] = !deliveryStatus[slipId][personType];
+                        check.classList.toggle('checked', deliveryStatus[slipId][personType]);
+                    }
+                }
+            });
+            setupReportSlipFilters();
+            generateReportSlips();
+        }
+        function prepareAndPrint() {
+            let printContents = '';
+            const slips = document.querySelectorAll('#reports-output .report-slip');
+            
+            const slipsPerPage = 8;
+            for (let i = 0; i < slips.length; i += slipsPerPage) {
+                let pageHTML = '<div class="print-page">';
+                const chunk = Array.from(slips).slice(i, i + slipsPerPage);
+                chunk.forEach(slip => pageHTML += slip.outerHTML);
+                pageHTML += '</div>';
+                printContents += pageHTML;
+            }
+
+            const printStyles = `
+                @page { size: A4 landscape; margin: 0; }
+                body { margin: 0; font-family: Arial, sans-serif; }
+                .print-page { display: flex; flex-wrap: wrap; justify-content: space-around; align-content: space-around; height: 100vh; box-sizing: border-box; page-break-after: always; }
+                .report-slip { border: 1px solid #000; background-color: #fff; color: #000; font-size: 8.5pt; padding: 8px; overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box; width: calc(25% - 8px); height: calc(50% - 8px); position: relative; }
+                .report-field { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; font-size:.9em; }
+                .report-field strong { position: relative; width:90px; flex-shrink:0; }
+                .report-field span { flex-grow:1; border-bottom:1px dotted #000; padding:0 3px; }
+                .report-slip h3 { text-align:center; margin-top:0; margin-bottom:20px; font-size:1em; line-height:1.2; }
+                .report-slip .rooms { margin-top:15px; font-size:.9em; }
+                .report-slip .rooms div { margin-bottom:5px; }
+                .report-slip .footer-note { margin-top:auto; font-size:.7em; color:#555; border-top:1px solid #ddd; padding-top:8px; }
+                .room-label::before { content: '☐'; font-family: "DejaVu Sans", sans-serif; margin-right: 8px; font-size: 1.2em; vertical-align: middle; }
+                .room-label[data-checked="true"]::before { content: '☑'; }
+                .delivery-check { flex-shrink:0; margin-left:10px; width:22px; height:22px; border:2px solid #a0b0c8; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; color:transparent; }
+                .delivery-check.checked { background-color:#28a745; border-color:#28a745; color:#fff; }
+                
+                .delivery-check:not(.checked) { display: none; }
+                .delivery-check.checked { display: flex !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #28a745 !important; border-color: #28a745 !important; color: #fff !important; border-radius: 50% !important; }
+            `;
+            
+            const printWindow = window.open('', '', 'height=800,width=1200');
+            printWindow.document.write('<html><head><title>Imprimir Asignaciones</title><style>' + printStyles + '</style></head><body>' + printContents + '</body></html>');
+            printWindow.document.close();
+            
+            setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+                printWindow.close();
+            }, 250);
+        }
+        function setupReportSlipFilters() {
+            const weekFilter = document.getElementById('report-week-filter');
+            const personFilter = document.getElementById('report-person-filter');
+            weekFilter.innerHTML = '<option value="">-- Todas las semanas --</option>';
+            Object.keys(fullDataCache).sort().forEach(week_id => {
+                weekFilter.innerHTML += `<option value="${week_id}">${fullDataCache[week_id].titulo || week_id}</option>`;
+            });
+            const allParticipants = new Set();
+            Object.values(fullDataCache).forEach(data => {
+                (data.maestros || []).forEach(parte => {
+                    ['main', 'aux2', 'aux3'].forEach(room => {
+                        if(parte[room]) parte[room].split('/').forEach(name => allParticipants.add(name.trim()));
+                    });
+                });
+            });
+            personFilter.innerHTML = '<option value="">-- Todas las personas --</option>';
+            Array.from(allParticipants).sort().forEach(name => {
+                if(name) personFilter.innerHTML += `<option value="${name}">${name}</option>`;
+            });
+        }
+        function generateReportSlips() {
+            const output = document.getElementById('reports-output');
+            const selectedWeek = document.getElementById('report-week-filter').value;
+            const selectedPerson = document.getElementById('report-person-filter').value;
+            let reportSlipsData = [];
+            deliveryStatus = {};
+            const weeksToProcess = selectedWeek ? [selectedWeek] : Object.keys(fullDataCache);
+            weeksToProcess.forEach(week_id => {
+                const data = fullDataCache[week_id];
+                if (!data) return;
+                (data.maestros || []).forEach(parte => {
+                    ['main', 'aux2', 'aux3'].forEach(room => {
+                        if (parte[room]) {
+                            const participants = parte[room].split('/').map(n => n.trim()).filter(Boolean);
+                            const [encargado, ayudante] = participants;
+                            if (encargado) {
+                                const baseSlipData = { participant: encargado, helper: ayudante || '', weekId: week_id, weekTitle: data.titulo, partTitle: parte.title, room: room };
+                                reportSlipsData.push({ ...baseSlipData, intendedFor: 'participant' });
+                                if (ayudante) reportSlipsData.push({ ...baseSlipData, intendedFor: 'helper' });
+                            }
+                        }
+                    });
+                });
+            });
+            const filteredData = selectedPerson ? reportSlipsData.filter(slip => slip.participant === selectedPerson || slip.helper === selectedPerson) : reportSlipsData;
+            output.innerHTML = filteredData.length > 0 ? filteredData.map((data, index) => createReportSlipHTML(data, index)).join('') : '<p>No se encontraron asignaciones con los filtros seleccionados.</p>';
+        }
+        function createReportSlipHTML(data, index) {
+            const slipId = `slip-${data.weekId}-${data.participant.replace(/\s+/g, '')}-${data.helper.replace(/\s+/g, '')}-${index}`;
+            deliveryStatus[slipId] = {
+                participant: data.intendedFor === 'participant',
+                helper: data.intendedFor === 'helper' && !!data.helper
+            };
+            const meetingDate = getFridayOfMeetingWeek(data.weekTitle, data.weekId);
+            const participantCheckClass = deliveryStatus[slipId].participant ? 'checked' : '';
+            const helperCheckClass = deliveryStatus[slipId].helper ? 'checked' : '';
+            const mainFieldHTML = `<div class="report-field"><strong>Nombre:</strong> <span>${data.participant}</span><div class="delivery-check ${participantCheckClass}" data-person="participant" title="Entregado a ${data.participant}">✓</div></div>`;
+            const helperFieldHTML = data.helper ? `<div class="report-field"><strong>Ayudante:</strong> <span>${data.helper}</span><div class="delivery-check ${helperCheckClass}" data-person="helper" title="Entregado a ${data.helper}">✓</div></div>` : `<div class="report-field"><strong>Ayudante:</strong> <span>Ninguno</span></div>`;
+            const roomsHTML = `<div class="rooms"><strong>Se presentará en:</strong><div><span class="room-label" data-checked="${data.room === 'main'}"> Sala principal</span></div><div><span class="room-label" data-checked="${data.room === 'aux2'}"> Sala auxiliar núm. 2</span></div><div><span class="room-label" data-checked="${data.room === 'aux3'}"> Sala auxiliar núm. 3</span></div></div>`;
+            return `<div class="report-slip" data-slip-id="${slipId}" data-room="${data.room}"><h3>ASIGNACIÓN PARA LA REUNIÓN<br>VIDA Y MINISTERIO CRISTIANOS</h3>${mainFieldHTML}${helperFieldHTML}<div class="report-field"><strong>Fecha:</strong> <span>${meetingDate}</span></div><div class="report-field"><strong>Intervención:</strong> <span>${data.partTitle}</span></div>${roomsHTML}<div class="footer-note"><strong>Nota:</strong> En la <em>Guía de actividades</em> encontrará la información para su intervención. Repase las <em>Instrucciones para la reunión</em> (S-38).<div style="text-align: right; margin-top: 5px;">S-89-S 11/23</div></div></div>`;
+        }
+        function getFridayOfMeetingWeek(weekTitle, weekId) {
+            const monthMap = { 'ENERO': 0, 'FEBRERO': 1, 'MARZO': 2, 'ABRIL': 3, 'MAYO': 4, 'JUNIO': 5, 'JULIO': 6, 'AGOSTO': 7, 'SEPTIEMBRE': 8, 'OCTUBRE': 9, 'NOVIEMBRE': 10, 'DICIEMBRE': 11 };
+            try {
+                const year = parseInt(weekId.substring(0, 4));
+                const match = weekTitle.match(/(\d{1,2}) DE (\w+)/i);
+                if (!match) return weekTitle; 
+                const day = parseInt(match[1]);
+                const monthName = match[2].toUpperCase();
+                const monthIndex = monthMap[monthName];
+                if (monthIndex === undefined) return weekTitle;
+                let startDate = new Date(Date.UTC(year, monthIndex, day));
+                let dayOfWeek = startDate.getUTCDay();
+                let daysToAdd = 5 - dayOfWeek; 
+                if (daysToAdd < 0) daysToAdd += 7;
+                let fridayDate = new Date(startDate);
+                fridayDate.setUTCDate(startDate.getUTCDate() + daysToAdd);
+                return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).format(fridayDate);
+            } catch (error) { return weekTitle; }
+        }
+
+        // --- INICIAR LA APLICACIÓN ---
+        initializeApp();
+    });
+    </script>
+</body>
+</html>
