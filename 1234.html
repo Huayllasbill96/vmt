@@ -136,6 +136,17 @@
 }
 /* -------------------------------------- */
 /* ------------------------------------ */
+/* ... código anterior ... */
+
+/* -------------------------------------- */
+
+
+/* --- PEGA AQUÍ EL NUEVO CÓDIGO PARA OCULTAR SALAS VACÍAS --- */
+.main-program-table tr td:not(.participante):not(:first-child) {
+    display: none;
+}
+/* ----------------------------------------------------------- */
+
 
 .participante { width: 60%; }
 
